@@ -1,6 +1,7 @@
-const vm = require('vm');
+const {NodeVM} = require('vm2');
 const fs = require('../../fs');
 
+const NOT_ALLOWED_ERROR = "Function not allowed";
 const noop = function() {};
 
 class RunCode {
@@ -8,9 +9,53 @@ class RunCode {
     this.logger = logger;
     const newGlobal = Object.create(global);
     newGlobal.fs = fs;
-    this.context = Object.assign({}, {
-      global: newGlobal, console, exports, require, module, __filename, __dirname, process,
-      setTimeout, setInterval, clearTimeout, clearInterval
+    this.context = {fs};// Object.assign({}, {
+      // fs, console, exports, require, module, __filename, __dirname, process,
+      // setTimeout, setInterval, clearTimeout, clearInterval
+    // });
+    
+    this.setupNodeVm();    
+  }
+
+  setupNodeVm(){
+    this.vm = new NodeVM({
+      sandbox: this.context,
+      require: {
+        // builtin: [
+        //   "console",
+        //   "exports",
+        //   "module",
+        //   "__filename",
+        //   "__dirname",
+        //   "process",
+        //   "setTimeout",
+        //   "setInterval",
+        //   "clearTimeout",
+        //   "clearInterval"
+        // ],
+        mock: {
+          fs:{
+            appendFileSync() { return NOT_ALLOWED_ERROR; },
+            copy() { return NOT_ALLOWED_ERROR; },
+            copyPreserve() { return NOT_ALLOWED_ERROR; },
+            copySync() { return NOT_ALLOWED_ERROR; },
+            createWriteStream() { return NOT_ALLOWED_ERROR; },
+            ensureFileSync() { return NOT_ALLOWED_ERROR; },
+            mkdirp() { return NOT_ALLOWED_ERROR; },
+            mkdirpSync() { return NOT_ALLOWED_ERROR; },
+            move() { return NOT_ALLOWED_ERROR; },
+            moveSync() { return NOT_ALLOWED_ERROR; },
+            outputFileSync() { return NOT_ALLOWED_ERROR; },
+            remove() { return NOT_ALLOWED_ERROR; },
+            removeSync() { return NOT_ALLOWED_ERROR; },
+            writeFile() { return NOT_ALLOWED_ERROR; },
+            writeFileSync() { return NOT_ALLOWED_ERROR; },
+            writeJSONSync() { return NOT_ALLOWED_ERROR; },
+            writeJson() { return NOT_ALLOWED_ERROR; }
+          }
+        },
+        external: true
+      }
     });
   }
 
@@ -22,7 +67,7 @@ class RunCode {
     });
 
     try {
-      return vm.runInNewContext(code, context);
+      return this.vm.run(code, __filename);
     } catch(e) {
       if (!tolerateError) {
         this.logger.error(e.message);
@@ -41,8 +86,9 @@ class RunCode {
     if (varName === 'web3') {
       global.web3 = code;
     }
-    this.context["global"][varName] = code;
+    //this.context["global"][varName] = code;
     this.context[varName] = code;
+    this.setupNodeVm();
   }
 
   getWeb3Config() {
