@@ -26,6 +26,9 @@ class BlockchainListener {
 
     if (this.ipc.isServer()) {
       this._listenToBlockchainLogs();
+      this._listenToCommands();
+      this._registerConsoleCommands();
+      this._registerApiEndpoint();
     }
   }
 
@@ -38,6 +41,50 @@ class BlockchainListener {
   _listenToBlockchainLogs() {
     this.ipc.on('blockchain:log', ({logLevel, message}) => {
       this.processLogsApi.logHandler.handleLog({logLevel, message});
+    });
+  }
+
+  _registerConsoleCommands() {
+    this.embark.registerConsoleCommand({
+      description: 'Enables regular transactions to prevent transactions from getting stuck when using Geth and Metamask',
+      matches: ['regularTxs on'],
+      usage: "regularTxs on",
+      process: (cmd, callback) => {
+        this.events.request('regularTxs:start', callback);
+      }
+    });
+    this.embark.registerConsoleCommand({
+      description: 'Disables regular transactions to prevent transactions from getting stuck when using Geth and Metamask',
+      matches: ['regularTxs off'],
+      usage: "regularTxs off",
+      process: (cmd, callback) => {
+        this.events.request('regularTxs:stop', callback);
+      }
+    });
+  }
+
+  _registerApiEndpoint() {
+    this.embark.registerAPICall(
+      'get',
+      '/embark-api/regular-txs',
+      (req, _res) => {
+        this.events.request(`regularTxs:${req.query.mode === 'on' ? 'start' : 'stop'}`);
+      }
+    );
+  }
+
+  _listenToCommands() {
+
+    this.events.setCommandHandler('regularTxs:start', (cb) => {
+      this.events.emit('regularTxs:start');
+      this.ipc.broadcast('regularTxs', 'start');
+      return cb(null, 'Enabling regular transactions');
+    });
+
+    this.events.setCommandHandler('regularTxs:stop', (cb) => {
+      this.events.emit('regularTxs:stop');
+      this.ipc.broadcast('regularTxs', 'stop');
+      return cb(null, 'Disabling regular transactions');
     });
   }
 }
