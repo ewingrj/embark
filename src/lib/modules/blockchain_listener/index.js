@@ -54,7 +54,7 @@ class BlockchainListener {
       }
     });
     this.embark.registerConsoleCommand({
-      description: 'Disables regular transactions to prevent transactions from getting stuck when using Geth and Metamask',
+      description: 'Disables regular transactions used to prevent transactions from getting stuck when using Geth and Metamask',
       matches: ['regularTxs off'],
       usage: "regularTxs off",
       process: (cmd, callback) => {
