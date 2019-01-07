@@ -62,8 +62,6 @@ class RunCode {
 
     try {
       // TODO: need to determine if this is an expression or needs to return something!
-      const isEvaluation = (code.indexOf('=') > -1 && code.indexOf(';') > -1);
-      code = `module.exports = (() => ${isEvaluation ? '{' : ''}${code}${isEvaluation ? '}' : ''})()`;
       return this.vm.run(code, code.indexOf('require') > -1 ? __filename : undefined);
     } catch(e) {
       if (!tolerateError) {

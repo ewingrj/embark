@@ -1,5 +1,6 @@
 const RunCode = require('./runCode.js');
 const Utils = require('../../../utils/utils');
+const Terser = require('terser');
 
 const WEB3_INVALID_RESPONSE_ERROR = 'Invalid JSON RPC response';
 
@@ -64,22 +65,25 @@ class CodeRunner {
 
   async evalCode(code, cb, forConsoleOnly = false, tolerateError = false) {
     cb = cb || function() {};
-    const awaitIdx = code.indexOf('await');
-    let awaiting = false;
+    const awaiting = code.indexOf('await') > -1;
+    const uglifyResult = Terser.minify(code, {
+      compress: false, // pass false to skip compressing entirely
+      mangle: false, // pass false to skip mangling names
+      keep_fnames: true, // pass true to prevent discarding or mangling of function names. Useful for code relying on Function.prototype.name
+      ecma: 8
+    });
+    if (uglifyResult.error) return cb(uglifyResult.error.message);
 
-    if (awaitIdx > -1) {
-      awaiting = true;
-      const instructions = Utils.compact(code.split(';'));
-      const last = instructions.pop();
+    const instructions = Utils.compact(uglifyResult.code.split(';'));
+    const last = instructions.pop().trim();
 
-      if (!last.trim().startsWith('return')) {
-        instructions.push(`return ${last}`);
-      } else {
-        instructions.push(last);
-      }
-
-      code = `(async function() {${instructions.join(';')}})();`;
+    if (!(last.startsWith('return') || last.indexOf('=') > -1)) {
+      instructions.push(`return ${last}`);
+    } else {
+      instructions.push(last);
     }
+
+    code = `module.exports = (${awaiting ? "async" : ""} () => {${instructions.join(';')};})()`;
     let result = this.runCode.doEval(code, tolerateError, forConsoleOnly);
 
     if (forConsoleOnly && this.ipc.isServer()) {
