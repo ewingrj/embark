@@ -173,6 +173,7 @@ class Engine {
       forceRegister: options.forceRegister
     });
     this.registerModule('authenticator');
+    this.registerModule('api');
   }
 
   codeRunnerService(_options) {
